@@ -27,6 +27,7 @@
       <a href="#skill">技能标签</a>
       <a href="#desc">岗位描述</a>
       <a href="#major">专业需求</a>
+      <a href="#industry">企业与行业</a>
       <a href="#about">数据说明</a>
     </nav>
   </div>
@@ -402,6 +403,58 @@
     </div>
   </section>
 
+  <section class="panel" id="industry">
+    <div class="panel-head">
+      <h2>⑪ 企业与行业维度</h2>
+      <span class="tag">公司名称 · 公司行业</span>
+    </div>
+    <p class="panel-desc">前十个板块都在看"岗位"，这一板块换到"谁在招"：用「公司名称」看招聘方的规模与集中度，用「公司行业」看岗位流向什么行业（原始字段有 1.7 万种写法且常含并列值，已按优先级归并为 20 个行业大类，每条岗位只归一个主行业）。</p>
+    <div class="card">
+      <h3>各行业岗位量与薪资溢价</h3>
+      <p class="hint">占全部岗位的比例（%）· 括号内为控制城市/学历/经验/规模后的薪资溢价（元/月）· 绿色＝正溢价，蓝色＝负溢价</p>
+      <div class="chart tall" id="chart-industry"></div>
+    </div>
+    <div class="grid two" style="margin-top:18px">
+      <div class="card">
+        <h3>主要行业岗位占比趋势</h3>
+        <p class="hint">TOP 8 行业 · 各月占当月岗位比例</p>
+        <div class="chart" id="chart-industrytrend"></div>
+      </div>
+      <div class="card">
+        <div class="controls" style="margin-top:0">
+          <span>选择行业：</span>
+          <select id="industry-select" style="padding:5px 8px;border:1px solid #e5eaf1;border-radius:8px;font-family:inherit;font-size:13px;color:#4a5a70"></select>
+        </div>
+        <h3>行业产业地图（省份热力）</h3>
+        <p class="hint">该行业在各省级行政区的岗位分布 · 可缩放拖动</p>
+        <div class="chart mapchart" id="chart-industrymap" style="height:520px"></div>
+      </div>
+    </div>
+    <div class="grid two" style="margin-top:18px">
+      <div class="card">
+        <h3>招聘岗位最多的 20 家企业</h3>
+        <p class="hint">按样本期内发布的岗位条数排序 · 标注覆盖月份数与平均薪资</p>
+        <div class="chart tall" id="chart-company"></div>
+      </div>
+      <div class="card">
+        <h3>企业招聘规模分布：企业数 vs 岗位数</h3>
+        <p class="hint">横轴＝单个企业发布的岗位条数；两组的反差说明"谁贡献了岗位"</p>
+        <div class="chart tall" id="chart-compdist"></div>
+      </div>
+    </div>
+    <div class="insights">
+      <b>关键结论</b>
+      <ul>
+        <li><b>财务岗位最集中的行业是制造、IT、房地产</b>：制造/机械设备 16.7%、互联网/IT/电子 14.9%、房地产/建筑/工程 14.7%，三者合计约 46%；传统财务大本营「会计/审计/税务」行业只占 5.3%，说明财务岗其实是<b>全行业配置型岗位</b>，而不是只存在于财税行业。</li>
+        <li><b>行业溢价差异明显，且方向反直觉</b>：<b>人力资源/外包服务 +1,670 元（+19.5%）</b>是全部行业里溢价最高的，金融/银行/保险 +792 元（+9.3%）、会计/审计/税务 +318 元次之；而酒店/餐饮/旅游 −751 元（−8.8%）、贸易/批发零售 −340 元、房地产 −315 元垫底。人力资源服务行业溢价高，是因为这类企业发布的多是替客户代招的中高端岗位（见下方企业榜）。</li>
+        <li><b>招聘方高度分散，没有"巨头垄断"</b>：样本期内共出现 <b>98,411 家企业</b>，平均每家只发布 <b>3.05 条</b>岗位；TOP 10 企业只占 2.4% 的岗位，TOP 100 占 6.9%，<b>TOP 1000（约 1% 的企业）合计 19.7%</b>。想在这类数据里做"企业画像"，样本量本身就很难支撑。</li>
+        <li><b>但岗位其实主要来自"长期在招"的企业</b>：<b>53.2% 的企业只发布过 1 条岗位</b>（一次性），而<b>持续出现 3 个月以上的企业只占 18.9%，却贡献了 58.6% 的岗位</b>。也就是说，一半企业是"偶尔招一次"，另一半岗位来自"常年挂着招聘"的公司——后者往往是高流动岗位、外包派遣或代账机构的常规获客方式。</li>
+        <li><b>头部"招聘方"里，人力资源公司比用人单位更显眼</b>：TOP 20 中有 6 家是人力/外包服务企业，<b>外企德科（1,507 条，覆盖全部 15 个月，均薪 9,937 元）</b>与<b>科锐国际（1,239 条，均薪 10,731 元）</b>位列前二。这说明大量财务岗位是通过人力资源服务商发布的，看到"某公司在招 1,000 个财务岗"时，先要确认它是<b>用人方还是渠道方</b>。</li>
+        <li>口径提示：本板块的"平均薪资"是该企业全部岗位的口径，会被岗位结构（如同时招出纳与财务总监）稀释；「长期招聘企业占比」这条指标在<b>最后一个月会偏低</b>，属于统计边界效应——新出现的企业来不及累积到 3 个月，因此该图只用于观察中间平台的稳定水平。</li>
+      </ul>
+    </div>
+  </section>
+
   <section class="panel" id="about">
     <div class="panel-head">
       <h2>数据说明与口径</h2>
@@ -459,6 +512,8 @@
 <script src="data/premium.js"></script>
 <script src="data/desc.js"></script>
 <script src="data/major.js"></script>
+<script src="data/industry.js"></script>
+<script src="data/company.js"></script>
 <script src="data/edu_exp.js"></script>
 <script src="data/city_salary.js"></script>
 <script src="assets/js/app.js"></script>

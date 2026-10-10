@@ -1079,6 +1079,215 @@
     });
   }
 
+  var industryMapChart = null;
+  var industrySelected = null;
+
+  function renderIndustry(selectIndustry) {
+    var IN = D.industry;
+    if (!IN) return;
+
+    var rows = IN.features.filter(function (r) { return r.name !== '未标注'; })
+      .slice(0, 14).sort(function (a, b) { return a.postShare - b.postShare; });
+    make(el('chart-industry'), {
+      tooltip: tooltipBase({
+        trigger: 'item',
+        formatter: function (p) {
+          var r = rows[p.dataIndex];
+          return '<b>' + r.name + '</b><br/>岗位占比：' + r.postShare +
+            '%（' + fmtInt(r.n_all) + ' 条）<br/>控制后薪资溢价：<b>' + premiumLabel(r.adj) +
+            ' 元/月（' + (r.pct >= 0 ? '+' : '') + r.pct + '%）</b>';
+        }
+      }),
+      grid: gridOpt(10, 84, 12, 6),
+      xAxis: {
+        type: 'value', axisLabel: axisLabel({ formatter: '{value}%' }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 15,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: function (p) { return rows[p.dataIndex].adj >= 0 ? '#12b3a0' : '#9db4d6'; }
+        },
+        data: rows.map(function (r) { return r.postShare; }),
+        label: {
+          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+          formatter: function (p) {
+            var r = rows[p.dataIndex];
+            return r.postShare + '%  (' + premiumLabel(r.adj) + ')';
+          }
+        }
+      }]
+    });
+
+    var trendCats = IN.features.filter(function (r) { return r.name !== '未标注' && r.name !== '其他行业'; }).slice(0, 8);
+    make(el('chart-industrytrend'), {
+      tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 20, 58, 6),
+      xAxis: { type: 'category', data: MLABELS, axisLabel: axisLabel(), axisLine: AXIS_LINE, axisTick: { show: false } },
+      yAxis: {
+        type: 'value', name: '占当月岗位', nameTextStyle: axisLabel(),
+        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      series: trendCats.map(function (r, i) {
+        return {
+          name: r.name, type: 'line', smooth: true, symbolSize: 4,
+          lineStyle: { width: 2, color: C[i % C.length] },
+          itemStyle: { color: C[i % C.length] },
+          data: IN.share[r.name]
+        };
+      })
+    });
+
+    var sel = el('industry-select');
+    if (sel) {
+      var opts = IN.features.filter(function (r) { return r.name !== '未标注'; });
+      sel.innerHTML = opts.map(function (r) {
+        return '<option value="' + r.name + '">' + r.name + '（' + r.postShare + '%）</option>';
+      }).join('');
+      if (!industrySelected) industrySelected = opts.length ? opts[0].name : null;
+      sel.value = industrySelected;
+      sel.addEventListener('change', function () {
+        industrySelected = sel.value;
+        drawIndustryMap();
+      });
+    }
+
+    function drawIndustryMap() {
+      if (!IN.provinces || !D.map_provinces) return;
+      var vals = IN.provinceMatrix[industrySelected] || [];
+      var data = IN.provinces.map(function (p, i) { return { name: p, value: vals[i] || 0 }; });
+      var maxV = Math.max.apply(null, vals.concat([1]));
+      var total = vals.reduce(function (a, b) { return a + b; }, 0) || 1;
+      var topIdx = vals.map(function (v, i) { return i; })
+        .sort(function (a, b) { return vals[b] - vals[a]; }).slice(0, 5);
+      var sub = topIdx.map(function (i) {
+        return IN.provinces[i] + ' ' + (vals[i] / total * 100).toFixed(1) + '%';
+      }).join(' · ');
+      var opt = {
+        tooltip: {
+          trigger: 'item', backgroundColor: 'rgba(255,255,255,.97)', borderColor: '#e5eaf1',
+          borderWidth: 1, textStyle: { color: '#16202e', fontSize: 12 },
+          formatter: function (p) {
+            var v = p.value || 0;
+            return '<b>' + p.name + '</b><br/>' + industrySelected + '：' + fmtInt(v) +
+              ' 条<br/>占该行业全国：' + (v / total * 100).toFixed(2) + '%';
+          }
+        },
+        graphic: [{
+          type: 'text', left: 12, top: 6,
+          style: { text: '区域分布 TOP5：' + sub, fontSize: 11, fill: '#8296ad' }
+        }],
+        visualMap: {
+          type: 'continuous', min: 0, max: maxV, left: 8, bottom: 20, calculable: true,
+          itemWidth: 12, itemHeight: 100, text: ['高', '低'], textStyle: axisLabel(),
+          inRange: { color: ['#eef4fd', '#c3d8f7', '#7fabe8', '#3f7fd4', '#1d4f96'] },
+          formatter: function (v) { return fmtInt(v); }
+        },
+        series: [{
+          type: 'map', map: 'china', roam: true, zoom: 1.18, center: [104, 34.5],
+          data: data,
+          label: { show: false },
+          itemStyle: { areaColor: '#f2f5fa', borderColor: '#cbd6e6', borderWidth: .7 },
+          emphasis: { label: { show: true, fontSize: 10 }, itemStyle: { areaColor: '#e8f0fb' } },
+          select: { disabled: true }
+        }]
+      };
+      if (industryMapChart) industryMapChart.setOption(opt, true);
+      else industryMapChart = make(el('chart-industrymap'), opt);
+    }
+    drawIndustryMap();
+  }
+
+  function renderCompany() {
+    var CO = D.company;
+    if (!CO) return;
+
+    var rows = CO.top.slice(0, 20).sort(function (a, b) { return a.count - b.count; });
+    make(el('chart-company'), {
+      tooltip: tooltipBase({
+        trigger: 'item',
+        formatter: function (p) {
+          var r = rows[p.dataIndex];
+          return '<b>' + r.name + '</b><br/>发布岗位：' + fmtInt(r.count) + ' 条<br/>覆盖月份：' +
+            r.months + ' / 15 个月<br/>平均薪资：' + (r.avgSalary ? fmtInt(r.avgSalary) + ' 元/月' : '—');
+        }
+      }),
+      grid: gridOpt(10, 70, 12, 6),
+      xAxis: {
+        type: 'value', axisLabel: axisLabel({ formatter: function (v) { return v / 1000 + 'k'; } }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({
+          fontSize: 11,
+          formatter: function (v) { return v.length > 16 ? v.slice(0, 16) + '…' : v; }
+        }),
+        axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 15,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#f2994a' }, { offset: 1, color: '#f7c08a' }])
+        },
+        data: rows.map(function (r) { return r.count; }),
+        label: {
+          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+          formatter: function (p) {
+            var r = rows[p.dataIndex];
+            return fmtInt(r.count) + ' 条 / ' + r.months + '个月';
+          }
+        }
+      }]
+    });
+
+    var names = CO.dist.map(function (d) { return d.name; });
+    var totalC = CO.totalCompanies || 1, totalP = CO.totalPosts || 1;
+    make(el('chart-compdist'), {
+      tooltip: tooltipBase({
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: function (ps) {
+          var i = ps[0].dataIndex;
+          var d = CO.dist[i];
+          return '<b>' + d.name + '</b><br/>企业数：' + fmtInt(d.companies) +
+            ' 家（' + (d.companies / totalC * 100).toFixed(1) + '%）<br/>岗位数：' +
+            fmtInt(d.posts) + ' 条（' + (d.posts / totalP * 100).toFixed(1) + '%）';
+        }
+      }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 20, 46, 6),
+      xAxis: {
+        type: 'category', data: names,
+        axisLabel: axisLabel({ fontSize: 11, interval: 0 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      yAxis: {
+        type: 'value', name: '占比', nameTextStyle: axisLabel(),
+        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      series: [
+        {
+          name: '企业数占比', type: 'bar', barMaxWidth: 30,
+          itemStyle: { color: '#9db4d6', borderRadius: [4, 4, 0, 0] },
+          data: CO.dist.map(function (d) { return +(d.companies / totalC * 100).toFixed(2); })
+        },
+        {
+          name: '岗位数占比', type: 'bar', barMaxWidth: 30,
+          itemStyle: { color: '#f2994a', borderRadius: [4, 4, 0, 0] },
+          data: CO.dist.map(function (d) { return +(d.posts / totalP * 100).toFixed(2); }),
+          label: { show: true, position: 'top', fontSize: 10, color: '#4a5a70', formatter: '{c}%' }
+        }
+      ]
+    });
+  }
+
   function renderDesc() {
     var DD = D.desc;
     if (!DD) return;
@@ -1290,6 +1499,7 @@
   }
 
   function init() {
+    if (D.map_provinces) echarts.registerMap('china', D.map_provinces);
     renderKPIs();
     renderTrend();
     renderSalary();
@@ -1304,10 +1514,9 @@
     renderEmployerTags();
     renderDesc();
     renderMajor();
-    if (D.map_provinces) {
-      echarts.registerMap('china', D.map_provinces);
-      initCity();
-    }
+    renderIndustry();
+    renderCompany();
+    if (D.map_provinces) initCity();
     make(el('chart-edu'), stackShareOption(D.education, 0.3, 0));
     make(el('chart-exp'), stackShareOption(D.experience, 0.3, 0));
 
