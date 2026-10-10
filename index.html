@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>财务岗位招聘数据洞察 · 智联招聘（2025.07–2026.09）</title>
+<meta name="description" content="基于智联招聘 29.9 万条财务岗位招聘数据的可视化分析：岗位数量趋势、城市分布与迁移、薪资水平、学历/经验/公司规模要求、福利待遇与技能标签。">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="logo">财</span>
+      <span>财务岗位招聘数据洞察<small>智联招聘 · 2025.07 – 2026.09</small></span>
+    </div>
+    <nav class="menu">
+      <a href="#trend">岗位数量</a>
+      <a href="#city">城市分布</a>
+      <a href="#salary">薪资水平</a>
+      <a href="#edu">学历要求</a>
+      <a href="#exp">经验要求</a>
+      <a href="#size">公司规模</a>
+      <a href="#benefit">福利待遇</a>
+      <a href="#skill">技能标签</a>
+      <a href="#about">数据说明</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+  <div class="hero">
+    <h1>财务岗位招聘数据洞察</h1>
+    <p class="sub">数据来源：智联招聘 · 财务类岗位 · 采集区间 2025 年 7 月 1 日 – 2026 年 9 月 30 日 · 共 299,901 条去重岗位记录</p>
+    <div class="kpis" id="kpis"></div>
+  </div>
+
+  <section class="panel" id="trend">
+    <div class="panel-head">
+      <h2>① 岗位数量随时间的变化趋势</h2>
+      <span class="tag">时间趋势</span>
+    </div>
+    <p class="panel-desc">按月统计财务岗位的招聘发布量，观察招聘旺季与淡季；切换到「按日」可以看到每天的实际发布节奏与 7 日移动平均线。</p>
+    <div class="controls">
+      <div class="seg" id="trend-grain">
+        <button data-v="month" class="on">按月度</button>
+        <button data-v="day">按日</button>
+      </div>
+      <label><input type="checkbox" id="trend-kind"> 按岗位类别拆分</label>
+    </div>
+    <div class="card">
+      <h3 id="trend-title">各月岗位发布量与环比变化</h3>
+      <p class="hint">柱状图为各月岗位数（左轴），折线为环比增长率（右轴）。</p>
+      <div class="chart tall" id="chart-trend"></div>
+    </div>
+    <div class="insights">
+      <b>关键结论</b>
+      <ul>
+        <li>全年招聘节奏呈明显季节性：<b>2026 年 2 月为最低谷（12,976 条）</b>，受春节影响；<b>3 月冲上全年最高（27,824 条）</b>，为典型的「金三银四」招聘旺季。</li>
+        <li>同比看，2026 年 7–9 月（63,599 条）较 2025 年 7–9 月（61,016 条）小幅增长约 <b>4.2%</b>，整体需求保持稳定。</li>
+        <li>岗位以全职为主（289,031 条，占 96.4%），实习（5,285 条）与校园招聘（3,576 条）合计约 3%。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="city">
+    <div class="panel-head">
+      <h2>② 城市分布与城市热度迁移</h2>
+      <span class="tag">地图热力 + 排名</span>
+    </div>
+    <p class="panel-desc">拖动下方月份滑块（或点击播放），地图与右侧排行榜会同步刷新：地图底色为该省当月岗位总量，气泡为当月岗位数最多的城市；右侧为该月 TOP 10 城市排行。</p>
+    <div class="controls">
+      <span class="monthlabel" id="city-month">2025年7月</span>
+      <input type="range" id="city-slider" min="0" max="14" value="0" step="1">
+      <button class="play" id="city-play">▶ 播放</button>
+      <label><input type="checkbox" id="city-bubble" checked> 显示城市气泡</label>
+    </div>
+    <div class="grid map">
+      <div class="card">
+        <h3>当月岗位数量地图热力</h3>
+        <p class="hint">省份底色 = 当月岗位总量；气泡大小与颜色 = 当月城市岗位数（仅显示前 40 个城市）。</p>
+        <div class="chart mapchart" id="chart-map"></div>
+      </div>
+      <div class="card">
+        <h3 id="city-rank-title">2025年7月 · 城市岗位数 TOP 10</h3>
+        <p class="hint">单位：条</p>
+        <div class="chart mapchart" id="chart-cityrank"></div>
+      </div>
+    </div>
+    <div class="grid two" style="margin-top:18px">
+      <div class="card">
+        <h3>头部城市月度岗位趋势</h3>
+        <p class="hint">点击图例可隐藏/显示城市</p>
+        <div class="chart" id="chart-citytrend"></div>
+      </div>
+      <div class="card">
+        <h3>TOP 10 城市排名变化（Bump 图）</h3>
+        <p class="hint">纵轴为当月排名，越靠上说明该月岗位需求越旺</p>
+        <div class="chart" id="chart-citybump"></div>
+      </div>
+    </div>
+    <div class="insights">
+      <b>关键结论</b>
+      <ul>
+        <li>岗位高度集中于少数城市：<b>北京（22,949 条）</b> 一骑绝尘，其后是 <b>成都（13,812）、郑州（12,427）、深圳（12,273）、上海（11,169）</b>；TOP 10 城市合计约占全国 37.5%。</li>
+        <li>新一线与二线城市是财务岗位的主力市场：成都、郑州、青岛、西安、济南等城市的岗位量已超过部分一线城市，说明财务岗位需求正在<b>向成本更低的区域中心城市扩散</b>。</li>
+        <li>薪资维度上，<b>上海（12,037 元/月）与北京（11,820 元/月）</b>显著高于其他城市，深圳约 11,146 元；而郑州（7,444 元）、成都（8,027 元）等岗位量大的城市薪资中枢更低，呈现「岗位多、薪资低」的错配特征。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="salary">
+    <div class="panel-head">
+      <h2>③ 薪资水平的变化趋势</h2>
+      <span class="tag">均值 / 中位数 / 档位分布</span>
+    </div>
+    <p class="panel-desc">薪资按岗位薪酬区间的中位数折算为「元/月」，<b>忽略「·13 薪」等发薪月数信息</b>，只取区间数字；日薪、时薪按 21.75 天/月、8 小时/天折算。共有 296,443 条记录可解析出薪资（占 98.8%）。</p>
+    <div class="controls">
+      <div class="seg" id="salary-scope">
+        <button data-v="all" class="on">全部岗位</button>
+        <button data-v="ft">仅全职</button>
+      </div>
+      <span style="color:var(--ink-3)">平均薪资走势（含中位数与四分位区间）</span>
+    </div>
+    <div class="grid two">
+      <div class="card">
+        <h3>月度平均薪资 / 中位数 / 四分位区间</h3>
+        <p class="hint">单位：元/月</p>
+        <div class="chart" id="chart-salary"></div>
+      </div>
+      <div class="card">
+        <h3>薪资档位分布变化（占比 100% 堆叠）</h3>
+        <p class="hint">各月不同薪资区间岗位所占比例</p>
+        <div class="chart" id="chart-band"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <div class="controls">
+        <span>薪资对比维度：</span>
+        <div class="seg" id="salary-dim">
+          <button data-v="size" class="on">按公司规模</button>
+          <button data-v="edu">按学历要求</button>
+          <button data-v="exp">按经验要求</button>
+          <button data-v="city">按城市</button>
+        </div>
+      </div>
+      <h3 id="salary-dim-title">不同公司规模的平均薪资</h3>
+      <p class="hint">单位：元/月 · 全周期平均</p>
+      <div class="chart short" id="chart-salarydim"></div>
+    </div>
+    <div class="insights">
+      <b>关键结论</b>
+      <ul>
+        <li>财务岗位整体薪资中枢稳定在 <b>8,200–8,800 元/月</b>，中位数长期锁定在 <b>6,500–7,000 元/月</b>；均值明显高于中位数，说明高薪岗位拉高了平均值，多数岗位实际薪资集中在 5–9 千元。</li>
+        <li>存在<b>淡季薪资下探</b>现象：3 月、9 月招聘量冲高时，平均薪资反而降至全年低点（8,243 元 / 8,213 元），说明旺季释放了大量基础岗位。</li>
+        <li>薪资档位结构缓慢下移：5 千元以下岗位占比由 17.6% 升至 <b>21.6%</b>，12 千元以上岗位占比由 17.5% 降至 <b>15.0%</b>，基础核算类岗位供给明显增加。</li>
+        <li>规模越大、学历越高、经验越久，薪资越高：1 万人以上企业（约 10,600 元）比 20 人以下小微企业（约 7,100 元）高出近 50%；硕士（13,891 元）约为大专（6,512 元）的 2.1 倍。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="edu">
+    <div class="panel-head">
+      <h2>④ 学历要求的占比变化趋势</h2>
+      <span class="tag">结构变化</span>
+    </div>
+    <p class="panel-desc">各月不同学历要求岗位的占比变化（100% 堆叠面积图），可直观看到学历门槛的抬升或松动。</p>
+    <div class="card">
+      <h3>学历要求占比趋势</h3>
+      <p class="hint">占比低于 0.3% 的类别合并为「其他」</p>
+      <div class="chart tall" id="chart-edu"></div>
+    </div>
+    <div class="insights">
+      <b>关键结论</b>
+      <ul>
+        <li>财务岗位学历门槛以<b>本科 + 大专</b>为绝对主体（合计约 94.8%）。本科占比最高（165,396 条，55.2%），大专（118,732 条，39.6%）次之，硕士及博士合计仅约 1.1%。</li>
+        <li>趋势上<b>学历门槛小幅松动</b>：本科要求占比由 2025 年 7 月的 56.0% 降至 2026 年 9 月的 48.3%，同期大专由 39.4% 升至 44.2%，学历不限由 2.0% 升至 4.2%。</li>
+        <li>这意味着企业更看重岗位匹配与实际经验，对学历的硬性要求有所放宽，尤其在中西部和中小规模企业。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="exp">
+    <div class="panel-head">
+      <h2>⑤ 经验要求的占比变化趋势</h2>
+      <span class="tag">结构变化</span>
+    </div>
+    <p class="panel-desc">与学历要求相同的处理方式：统计各月不同经验要求岗位的占比变化，并交叉查看「学历 × 经验」的组合热度。</p>
+    <div class="grid two">
+      <div class="card">
+        <h3>经验要求占比趋势</h3>
+        <p class="hint">各月占比（100% 堆叠面积图）</p>
+        <div class="chart" id="chart-exp"></div>
+      </div>
+      <div class="card">
+        <h3>学历 × 经验 组合热度</h3>
+        <p class="hint">颜色越深代表该组合的岗位数量越多（全周期累计）</p>
+        <div class="chart" id="chart-eduexp"></div>
+      </div>
+    </div>
+    <div class="insights">
+      <b>关键结论</b>
+      <ul>
+        <li>经验要求结构非常稳定：<b>1–3 年（100,213 条，33.4%）</b> 与 <b>3–5 年（93,893 条，31.3%）</b> 合计约占 65%，是财务岗位的绝对主力区间。</li>
+        <li>「5–10 年」（56,554 条，18.9%）排在第三，10 年以上仅 8,705 条（2.9%），说明高端财务岗位（财务总监/CFO）在整体招聘量中占比很低。</li>
+        <li>门槛友好型岗位在扩容：「经验不限」占比从 9.7% 升到 11.7%，而「无经验」几乎消失（2026 年后基本为 0），企业更愿意用「经验不限」而非「接受无经验」来放宽门槛。</li>
+        <li>学历与经验高度绑定：<b>本科 + 3–5 年</b>、<b>大专 + 1–3 年</b> 是最密集的两个组合，分别对应中高级核算岗与基层财务岗。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="size">
+    <div class="panel-head">
+      <h2>⑥ 公司规模：结构变化 + 薪资水平</h2>
+      <span class="tag">与薪资同口径处理</span>
+    </div>
+    <p class="panel-desc">左侧展示不同规模企业的招聘占比变化，右侧展示各规模企业的平均薪资走势，两者结合可以判断「岗位流向哪类企业」以及「哪类企业更舍得给钱」。</p>
+    <div class="grid two">
+      <div class="card">
+        <h3>各规模企业岗位占比趋势</h3>
+        <p class="hint">100% 堆叠面积图</p>
+        <div class="chart" id="chart-size"></div>
+      </div>
+      <div class="card">
+        <h3>各规模企业平均薪资走势</h3>
+        <p class="hint">单位：元/月</p>
+        <div class="chart" id="chart-sizesal"></div>
+      </div>
+    </div>
+    <div class="insights">
+      <b>关键结论</b>
+      <ul>
+        <li>需求主体是中小企业：<b>20–99 人（93,113 条，31.0%）</b> 与 <b>100–299 人（68,502 条，22.8%）</b> 合计超过一半。</li>
+        <li>最显著的趋势是<b>小微企业与超小团队招聘占比大幅提升</b>：「20 人以下」占比从 2025 年 7 月的 4.0% 飙升至 2026 年 9 月的 <b>15.3%</b>；与此同时 1,000 人以上大企业占比从 23.9% 降至 16.3%。</li>
+        <li>这与薪资结构下移、学历要求放宽相互印证：<b>大量基础财务岗位来自小微企业和代账/咨询机构</b>，招聘门槛低但薪资天花板也低。</li>
+        <li>薪资与规模基本正相关：1 万人以上企业平均约 10,600 元/月，1,000–9,999 人约 10,300 元，而 20 人以下仅约 7,100 元，且近一年持续走低。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="benefit">
+    <div class="panel-head">
+      <h2>⑦ 福利待遇怎么处理（试做版）</h2>
+      <span class="tag">文本标签解析</span>
+    </div>
+    <p class="panel-desc">「岗位福利」字段是标签列表，但只有约 <b>32.8%</b> 的岗位填写了福利，且标签口径不统一（例如「五险」「五险一金」「六险一金」「缴纳五险」并存）。这里的处理方式是：<b>先按关键词归并成 19 个福利大类，再统计「有多少比例的岗位提供了该福利」</b>，而不是简单数标签出现次数。</p>
+    <div class="grid two">
+      <div class="card">
+        <h3>福利标注覆盖率趋势</h3>
+        <p class="hint">当月填写了福利标签的岗位占比（反映数据质量，而非福利变差）</p>
+        <div class="chart short" id="chart-bencover"></div>
+      </div>
+      <div class="card">
+        <h3>福利类型普及度 TOP 12</h3>
+        <p class="hint">占全部岗位的比例（左轴，%）与提供该福利岗位的平均薪资（右轴，元）</p>
+        <div class="chart short" id="chart-ben"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>主要福利出现率趋势</h3>
+      <p class="hint">各月提供该福利的岗位占当月岗位总数的比例</p>
+      <div class="chart" id="chart-bentrend"></div>
+    </div>
+    <div class="insights">
+      <b>处理思路与结论</b>
+      <ul>
+        <li><b>先归并、再算比例</b>：原始福利标签有上千种写法（仅抽样即已出现 1,425 种，如「五险」「五险一金」「六险一金」「缴纳五险」并存），直接做词云会充满噪音；按关键词映射到「五险一金/社保」「双休」「带薪年假」等 19 个大类后才具备可比性。</li>
+        <li>普及度最高的是 <b>五险一金/社保（20.0% 的岗位）</b>、<b>双休（14.2%）</b>、<b>节日/生日福利（8.5%）</b>、<b>绩效奖金（6.9%）</b>、<b>带薪年假（5.8%）</b>。</li>
+        <li>福利与薪资存在相关性：提供 <b>定期体检（8,796 元）、绩效奖金（8,432 元）、年终奖（8,040 元）</b> 的岗位薪资明显高于样本均值（8,563 元），而主打「双休」（6,755 元）、「法定节假日」（6,837 元）的岗位多为低薪基础岗——前者是「好公司才给的福利」，后者是「基础岗用来吸引人的卖点」。</li>
+        <li>建议后续把福利拆成三层：<b>法定保障层</b>（五险一金、法定节假日）、<b>现金激励层</b>（绩效、年终奖、提成、全勤）、<b>软性福利层</b>（双休、团建、体检、旅游、下午茶），分别看趋势与薪资溢价，会比单看总标签数更有解释力。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="skill">
+    <div class="panel-head">
+      <h2>⑧ 技能标签怎么处理（试做版）</h2>
+      <span class="tag">文本标签解析</span>
+    </div>
+    <p class="panel-desc">「技能标签」字段同样存在大量同义与冗余写法（7,238 种）。这里的处理方式是：<b>按关键词归并为「证书类 / 职能模块类 / 企业性质类 / 行业类」四大类</b>，重点观察证书与职能模块的需求趋势。</p>
+    <div class="card">
+      <h3>技能标签需求热度 TOP 20</h3>
+      <p class="hint">占全部岗位的比例（%）</p>
+      <div class="chart short" id="chart-skill"></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>重点技能标签需求占比趋势</h3>
+      <p class="hint">点击图例可增减对比项</p>
+      <div class="chart tall" id="chart-skilltrend"></div>
+    </div>
+    <div class="insights">
+      <b>处理思路与结论</b>
+      <ul>
+        <li><b>证书是财务岗位最硬的门槛信号</b>：会计中级职称（20.5% 的岗位）、会计初级职称（19.8%）、会计从业资格证书（13.6%）是出现频率最高的三个标签，其中中级职称的提及率已略高于初级职称，说明企业更偏好「能独立顶岗」的持证人员。</li>
+        <li>职能模块上，<b>成本会计/成本核算（20.6%）、财务分析（18.5%）、审计（16.5%）、税务管理（13.6%）</b> 是需求最旺的方向，纯记账类（核算会计 10.4%、总账会计 9.7%）占比相对更低。</li>
+        <li>企业性质与行业标签揭示了雇主结构：<b>集团公司（9.4%）、上市企业、高新技术企业、会计师事务所</b> 是最常见的雇主标签，会计师事务所与代账机构的岗位往往薪资偏低但经验积累快。</li>
+        <li>建议后续做法：把「证书类」单独做成时间趋势（观察 CPA、中级职称门槛是否抬升），把「职能模块类」与薪资交叉（例如成本会计 vs 税务会计的薪资差异），「行业类」则与城市地图结合，看不同区域的产业特征如何影响岗位需求。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel" id="about">
+    <div class="panel-head">
+      <h2>数据说明与口径</h2>
+      <span class="tag">方法论</span>
+    </div>
+    <div class="grid two">
+      <div>
+        <h3 style="font-size:14px">数据处理</h3>
+        <ul style="color:var(--ink-2);font-size:13.5px">
+          <li>原始数据 299,901 条（按职位 URL 去重后无重复记录），时间跨度 2025-07-01 至 2026-09-30。</li>
+          <li>薪资口径：取薪资区间中点折算为「元/月」，<b>忽略「·13 薪」等发薪月数</b>；日薪按 21.75 天/月、时薪按 8 小时/天折算；「面议」等无法解析的记录（2,945 条，1.0%）不计入薪资统计。</li>
+          <li>薪资异常值处理：折算后低于 1,000 元/月或高于 200,000/月的记录不纳入统计。</li>
+          <li>所有「占比」均以当月岗位总数为分母，避免因各月样本量不同造成误读。</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:14px">局限与后续可做</h3>
+        <ul style="color:var(--ink-2);font-size:13.5px">
+          <li>「岗位福利」仅有 32.8% 的岗位填写，覆盖率本身存在月度波动，趋势解读需谨慎。</li>
+          <li>薪资为招聘方标注的区间中位值，不代表实际到手收入，且未考虑年终奖与发薪月数。</li>
+          <li>同一企业多次发布同一职位会被计为多条岗位记录。</li>
+          <li>后续可补充：岗位描述文本挖掘（技能词频、任职要求）、企业维度聚合（同一企业招聘规模）、薪资分位数回归（控制城市/经验/学历后的纯溢价）。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  数据来源：智联招聘财务类岗位招聘信息（2025.07–2026.09） · 本页为静态可视化页面，图表由 ECharts 渲染，数据文件随页面一同托管。
+</footer>
+
+<div id="loading">正在加载数据…</div>
+
+<script src="assets/js/echarts.min.js"></script>
+<script src="data/meta.js"></script>
+<script src="data/trend.js"></script>
+<script src="data/city.js"></script>
+<script src="data/city_month_full.js"></script>
+<script src="data/city_index.js"></script>
+<script src="data/map_provinces.js"></script>
+<script src="data/salary.js"></script>
+<script src="data/education.js"></script>
+<script src="data/experience.js"></script>
+<script src="data/size.js"></script>
+<script src="data/benefits.js"></script>
+<script src="data/skills.js"></script>
+<script src="data/edu_exp.js"></script>
+<script src="data/city_salary.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
