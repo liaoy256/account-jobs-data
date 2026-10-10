@@ -1288,6 +1288,88 @@
     });
   }
 
+  function renderQuantile() {
+    var SA = D.salary, P = D.premium;
+    if (!SA) return;
+
+    if (SA.p10) {
+      var qs = [
+        { name: 'P10（低位）', key: 'p10', color: '#c7d3e6', w: 1.6 },
+        { name: 'P25', key: 'p25', color: '#9db4d6', w: 1.8 },
+        { name: '中位数 P50', key: 'median', color: '#12b3a0', w: 2.6 },
+        { name: 'P75', key: 'p75', color: '#5b9bf0', w: 1.8 },
+        { name: 'P90（高位）', key: 'p90', color: '#1d5bd6', w: 1.6 },
+        { name: '平均薪资', key: 'avg', color: '#f2994a', w: 2.2, dash: 'dashed' }
+      ];
+      make(el('chart-qtrend'), {
+        tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : fmtInt(v) + ' 元'; } }),
+        legend: legendBase({ type: 'scroll' }),
+        grid: gridOpt(10, 20, 58, 6),
+        xAxis: { type: 'category', data: MLABELS, axisLabel: axisLabel(), axisLine: AXIS_LINE, axisTick: { show: false } },
+        yAxis: {
+          type: 'value', name: '元/月', nameTextStyle: axisLabel(),
+          min: function (v) { return Math.floor((v.min - 500) / 500) * 500; },
+          axisLabel: axisLabel({ formatter: function (v) { return (v / 1000).toFixed(0) + 'k'; } }),
+          splitLine: { lineStyle: { color: '#f0f3f8' } }
+        },
+        series: qs.filter(function (s) { return SA[s.key]; }).map(function (s) {
+          return {
+            name: s.name, type: 'line', smooth: true, symbolSize: 4,
+            lineStyle: { width: s.w, color: s.color, type: s.dash || 'solid' },
+            itemStyle: { color: s.color },
+            data: SA[s.key]
+          };
+        })
+      });
+    }
+
+    var rows = (P && P.skillQuantiles) ? P.skillQuantiles.slice()
+      .filter(function (r) { return r.q50 !== null; })
+      .sort(function (a, b) { return a.q50 - b.q50; }) : [];
+    make(el('chart-qpremium'), {
+      tooltip: tooltipBase({
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: function (ps) {
+          var r = rows[ps[0].dataIndex];
+          return '<b>' + r.name + '</b><br/>P25 溢价：' + premiumLabel(r.q25) +
+            ' 元<br/>P50 溢价：' + premiumLabel(r.q50) + ' 元<br/>P75 溢价：' +
+            premiumLabel(r.q75) + ' 元<br/>样本：' + fmtInt(r.n) + ' 条 / ' + r.strata + ' 个分层';
+        }
+      }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 24, 46, 6),
+      xAxis: {
+        type: 'value',
+        axisLabel: axisLabel({ formatter: function (v) { return (v / 1000).toFixed(1) + 'k'; } }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [
+        { name: 'P25 溢价', key: 'q25', color: '#9db4d6' },
+        { name: 'P50 溢价', key: 'q50', color: '#12b3a0' },
+        { name: 'P75 溢价', key: 'q75', color: '#1d5bd6' }
+      ].map(function (s, idx) {
+        return {
+          name: s.name, type: 'bar', barMaxWidth: 8,
+          itemStyle: { color: s.color, borderRadius: [0, 3, 3, 0] },
+          data: rows.map(function (r) { return r[s.key]; }),
+          label: idx === 2 ? {
+            show: true, position: 'right', fontSize: 9, color: '#4a5a70',
+            formatter: function (p) { return premiumLabel(p.value); }
+          } : { show: false },
+          markLine: idx === 0 ? {
+            silent: true, symbol: 'none',
+            lineStyle: { color: '#c9d3e2', type: 'dashed', width: 1 },
+            label: { show: false }, data: [{ xAxis: 0 }]
+          } : undefined
+        };
+      })
+    });
+  }
+
   function renderDesc() {
     var DD = D.desc;
     if (!DD) return;
@@ -1516,6 +1598,7 @@
     renderMajor();
     renderIndustry();
     renderCompany();
+    renderQuantile();
     if (D.map_provinces) initCity();
     make(el('chart-edu'), stackShareOption(D.education, 0.3, 0));
     make(el('chart-exp'), stackShareOption(D.experience, 0.3, 0));
