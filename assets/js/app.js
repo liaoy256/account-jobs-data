@@ -40,6 +40,16 @@
   function sum(a) { var s = 0; for (var i = 0; i < a.length; i++) s += a[i] || 0; return s; }
   function el(id) { return document.getElementById(id); }
 
+  /* 「技能标签」字段里混着两类东西：真正可被要求的技能/资质，以及描述雇主的属性。
+     分类来自数据里的 family 字段，技能榜只保留前者。 */
+  var SKILL_FAMILY = {};
+  if (D.premium && D.premium.skillCats) {
+    D.premium.skillCats.forEach(function (r) { SKILL_FAMILY[r.name] = r.family; });
+  }
+  var SKILL_FAMILY_REAL = '技能与资质';
+  var SKILL_FAMILY_EMPLOYER = '雇主与行业属性';
+  function isSkillTag(name) { return SKILL_FAMILY[name] === SKILL_FAMILY_REAL; }
+
   var charts = [];
   function make(dom, option) {
     if (!dom) return null;
@@ -858,7 +868,9 @@
   function renderSkillPremium() {
     var P = D.premium;
     if (!P) return;
-    var rows = P.skillCats.filter(function (r) { return r.n >= 300 && r.adj != null; })
+    var rows = P.skillCats.filter(function (r) {
+      return r.family === SKILL_FAMILY_REAL && r.n >= 300 && r.adj != null;
+    })
       .sort(function (a, b) { return Math.abs(b.adj) - Math.abs(a.adj); })
       .slice(0, 16);
     rows.sort(function (a, b) { return a.adj - b.adj; });
@@ -901,6 +913,50 @@
           silent: true, symbol: 'none',
           lineStyle: { color: '#c9d3e2', type: 'dashed', width: 1 },
           label: { show: false }, data: [{ xAxis: 0 }]
+        }
+      }]
+    });
+  }
+
+  function renderEmployerTags() {
+    var P = D.premium;
+    if (!P) return;
+    var rows = P.skillCats.filter(function (r) { return r.family === SKILL_FAMILY_EMPLOYER; })
+      .sort(function (a, b) { return a.postShare - b.postShare; });
+    make(el('chart-employer'), {
+      tooltip: tooltipBase({
+        trigger: 'item',
+        formatter: function (p) {
+          var r = rows[p.dataIndex];
+          return '<b>' + r.name + '</b>（' + r.group + '）<br/>岗位占比：' + r.postShare +
+            '%<br/>控制后薪资溢价：<b>' + premiumLabel(r.adj) + ' 元/月（' +
+            (r.pct >= 0 ? '+' : '') + r.pct + '%）</b><br/>样本：' + fmtInt(r.n) + ' 条';
+        }
+      }),
+      grid: gridOpt(10, 74, 14, 6),
+      xAxis: {
+        type: 'value', axisLabel: axisLabel({ formatter: '{value}%' }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 14,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: function (p) {
+            return rows[p.dataIndex].group === '企业性质' ? '#12b3a0' : '#f2994a';
+          }
+        },
+        data: rows.map(function (r) { return r.postShare; }),
+        label: {
+          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+          formatter: function (p) {
+            var r = rows[p.dataIndex];
+            return r.postShare + '%  (' + premiumLabel(r.adj) + ')';
+          }
         }
       }]
     });
@@ -1057,7 +1113,8 @@
   }
 
   function renderSkills() {
-    var top = D.skills.overall.slice().sort(function (a, b) { return a.count - b.count; }).slice(-20);
+    var top = D.skills.overall.filter(function (r) { return isSkillTag(r.name); })
+      .sort(function (a, b) { return a.count - b.count; }).slice(-20);
     make(el('chart-skill'), {
       tooltip: tooltipBase({
         trigger: 'axis', axisPointer: { type: 'shadow' },
@@ -1082,7 +1139,7 @@
       }]
     });
 
-    var cats = D.skills.categories.slice();
+    var cats = D.skills.categories.filter(isSkillTag);
     make(el('chart-skilltrend'), {
       tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
       legend: legendBase({ type: 'scroll', top: 0, left: 0, right: 0, height: 54 }),
@@ -1125,6 +1182,7 @@
     renderSkills();
     renderBenefitLayers();
     renderSkillPremium();
+    renderEmployerTags();
     renderDesc();
     if (D.map_provinces) {
       echarts.registerMap('china', D.map_provinces);
