@@ -47,7 +47,7 @@
     D.premium.skillCats.forEach(function (r) { SKILL_FAMILY[r.name] = r.family; });
   }
   var SKILL_FAMILY_REAL = '技能与资质';
-  var SKILL_FAMILY_EMPLOYER = '雇主与行业属性';
+  var SKILL_FAMILY_EMPLOYER = '非技能标签';
   function isSkillTag(name) { return SKILL_FAMILY[name] === SKILL_FAMILY_REAL; }
 
   var charts = [];
@@ -923,6 +923,7 @@
     if (!P) return;
     var rows = P.skillCats.filter(function (r) { return r.family === SKILL_FAMILY_EMPLOYER; })
       .sort(function (a, b) { return a.postShare - b.postShare; });
+    var nonSkillColor = { '岗位职能类别': '#8b5cf6', '企业性质': '#12b3a0', '行业场景': '#f2994a' };
     make(el('chart-employer'), {
       tooltip: tooltipBase({
         trigger: 'item',
@@ -946,9 +947,7 @@
         type: 'bar', barMaxWidth: 14,
         itemStyle: {
           borderRadius: [0, 4, 4, 0],
-          color: function (p) {
-            return rows[p.dataIndex].group === '企业性质' ? '#12b3a0' : '#f2994a';
-          }
+          color: function (p) { return nonSkillColor[rows[p.dataIndex].group] || '#8296ad'; }
         },
         data: rows.map(function (r) { return r.postShare; }),
         label: {
@@ -959,6 +958,124 @@
           }
         }
       }]
+    });
+  }
+
+  var MAJOR_GROUP_COLOR = {
+    '财会类': '#1d5bd6', '经管类': '#12b3a0', '数据与信息类': '#8b5cf6',
+    '法律类': '#eb5757', '外语类': '#00b8d9', '理工与医药类': '#f2994a', '其他': '#8296ad'
+  };
+
+  function renderMajor() {
+    var MJ = D.major;
+    if (!MJ) return;
+
+    var rows = MJ.features.filter(function (r) { return r.n >= 300; })
+      .slice(0, 16).sort(function (a, b) { return a.postShare - b.postShare; });
+    var majorTitle = el('major-top-title');
+    if (majorTitle) majorTitle.textContent = '各专业提及率（样本量 ≥300 的 ' + rows.length + ' 个标签）';
+    make(el('chart-major'), {
+      tooltip: tooltipBase({
+        trigger: 'item',
+        formatter: function (p) {
+          var r = rows[p.dataIndex];
+          return '<b>' + r.name + '</b>（' + r.group + '）<br/>提及率：' + r.postShare +
+            '%（' + fmtInt(r.n_all) + ' 条）<br/>控制后薪资溢价：<b>' + premiumLabel(r.adj) +
+            ' 元/月（' + (r.pct >= 0 ? '+' : '') + r.pct + '%）</b>';
+        }
+      }),
+      grid: gridOpt(10, 84, 12, 6),
+      xAxis: {
+        type: 'value', axisLabel: axisLabel({ formatter: '{value}%' }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 14,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: function (p) { return MAJOR_GROUP_COLOR[rows[p.dataIndex].group] || '#1d5bd6'; }
+        },
+        data: rows.map(function (r) { return r.postShare; }),
+        label: {
+          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+          formatter: function (p) {
+            var r = rows[p.dataIndex];
+            return r.postShare + '%  (' + premiumLabel(r.adj) + ')';
+          }
+        }
+      }]
+    });
+
+    var trendCats = MJ.features.slice(0, 8);
+    make(el('chart-majortrend'), {
+      tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 20, 58, 6),
+      xAxis: { type: 'category', data: MLABELS, axisLabel: axisLabel(), axisLine: AXIS_LINE, axisTick: { show: false } },
+      yAxis: {
+        type: 'value', name: '提及率', nameTextStyle: axisLabel(),
+        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      series: trendCats.map(function (r, i) {
+        return {
+          name: r.name, type: 'line', smooth: true, symbolSize: 4,
+          lineStyle: { width: 2, color: MAJOR_GROUP_COLOR[r.group] || C[i % C.length] },
+          itemStyle: { color: MAJOR_GROUP_COLOR[r.group] || C[i % C.length] },
+          data: MJ.share[r.name]
+        };
+      })
+    });
+
+    make(el('chart-majorreq'), {
+      tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
+      grid: gridOpt(10, 20, 24, 6),
+      xAxis: { type: 'category', data: MLABELS, axisLabel: axisLabel(), axisLine: AXIS_LINE, axisTick: { show: false } },
+      yAxis: {
+        type: 'value', name: '占比', nameTextStyle: axisLabel(),
+        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      series: [{
+        name: '写明专业要求', type: 'line', smooth: true, symbolSize: 5,
+        data: MJ.crossShare['any_major'],
+        lineStyle: { width: 2.6, color: '#1d5bd6' }, itemStyle: { color: '#1d5bd6' },
+        areaStyle: { color: areaGrad('#1d5bd6') }
+      }]
+    });
+
+    var cond = [];
+    for (var i = 0; i < MJ.months.length; i++) {
+      var a = MJ.crossShare['cross_any'][i], b = MJ.crossShare['any_major'][i];
+      cond.push(b ? +(a / b * 100).toFixed(2) : null);
+    }
+    var crossSeries = [
+      { name: '提到 ≥2 类学科（绝对占比）', key: 'cross_any', color: '#1d5bd6', w: 2.8 },
+      { name: '提到 ≥2 类学科（写明专业要求的岗位中）', data: cond, color: '#8b5cf6', w: 2.2, dash: 'dashed' },
+      { name: '财会 + 金融 / 经济', key: 'fin_econ', color: '#12b3a0', w: 2 },
+      { name: '财会 + 数据 / 信息', key: 'fin_tech', color: '#00b8d9', w: 2 },
+      { name: '财会 + 理工 / 医药', key: 'fin_techind', color: '#f2994a', w: 2 },
+      { name: '不限专业', key: 'no_major', color: '#8296ad', w: 1.6 }
+    ];
+    make(el('chart-majorcross'), {
+      tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 20, 74, 6),
+      xAxis: { type: 'category', data: MLABELS, axisLabel: axisLabel(), axisLine: AXIS_LINE, axisTick: { show: false } },
+      yAxis: {
+        type: 'value', name: '占比', nameTextStyle: axisLabel(),
+        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      series: crossSeries.map(function (s) {
+        return {
+          name: s.name, type: 'line', smooth: true, symbolSize: 4,
+          lineStyle: { width: s.w, color: s.color, type: s.dash || 'solid' },
+          itemStyle: { color: s.color },
+          data: s.data || MJ.crossShare[s.key]
+        };
+      })
     });
   }
 
@@ -1115,6 +1232,8 @@
   function renderSkills() {
     var top = D.skills.overall.filter(function (r) { return isSkillTag(r.name); })
       .sort(function (a, b) { return a.count - b.count; }).slice(-20);
+    var topTitle = el('skill-top-title');
+    if (topTitle) topTitle.textContent = '技能与资质需求热度 TOP ' + top.length;
     make(el('chart-skill'), {
       tooltip: tooltipBase({
         trigger: 'axis', axisPointer: { type: 'shadow' },
@@ -1184,6 +1303,7 @@
     renderSkillPremium();
     renderEmployerTags();
     renderDesc();
+    renderMajor();
     if (D.map_provinces) {
       echarts.registerMap('china', D.map_provinces);
       initCity();
