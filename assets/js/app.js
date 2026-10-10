@@ -42,6 +42,7 @@
 
   var charts = [];
   function make(dom, option) {
+    if (!dom) return null;
     var c = echarts.init(dom, null, { renderer: 'canvas' });
     c.setOption(option);
     charts.push(c);
@@ -690,37 +691,6 @@
       }]
     });
 
-    var top = D.benefits.overall.slice(0, 12).slice().sort(function (a, b) { return a.postShare - b.postShare; });
-    make(el('chart-ben'), {
-      tooltip: tooltipBase({
-        trigger: 'axis', axisPointer: { type: 'shadow' },
-        formatter: function (ps) {
-          var name = ps[0].name;
-          var row = top.filter(function (r) { return r.name === name; })[0] || {};
-          return '<b>' + name + '</b><br/>岗位占比：' + row.postShare + '%<br/>岗位数：' +
-            fmtInt(row.count) + '<br/>平均薪资：' + fmtInt(row.avgSalary) + ' 元/月';
-        }
-      }),
-      grid: gridOpt(6, 66, 10, 6),
-      xAxis: {
-        type: 'value', position: 'bottom',
-        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
-      },
-      yAxis: { type: 'category', data: top.map(function (r) { return r.name; }), axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false } },
-      series: [
-        {
-          name: '岗位占比', type: 'bar', barMaxWidth: 14, barGap: '-100%',
-          itemStyle: {
-            borderRadius: [0, 6, 6, 0],
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              { offset: 0, color: '#8b5cf6' }, { offset: 1, color: '#b79bf7' }])
-          },
-          data: top.map(function (r) { return r.postShare; }),
-          label: { show: true, position: 'right', fontSize: 10, color: '#4a5a70', formatter: '{c}%' }
-        }
-      ]
-    });
-
     var trendCats = D.benefits.overall.slice(0, 6).map(function (r) { return r.name; });
     make(el('chart-bentrend'), {
       tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
@@ -739,6 +709,353 @@
   }
 
   /* ------------------------------------------------------------ 8 技能 */
+  var LAYER_COLOR = { '法定保障层': '#1d5bd6', '现金激励层': '#f2994a', '软性福利层': '#12b3a0' };
+  var GROUP_COLOR = {
+    '证书资质': '#8b5cf6', '职能模块': '#1d5bd6', '企业性质': '#12b3a0', '行业场景': '#f2994a',
+    '工具与软件': '#1d5bd6', '证书与资质': '#8b5cf6', '职能与任务': '#12b3a0',
+    '软技能与工作条件': '#f2994a', '行业与场景': '#00b8d9'
+  };
+
+  function premiumLabel(val) {
+    var s = (val >= 0 ? '+' : '') + fmtInt(val);
+    return s;
+  }
+
+  function renderBenefitLayers() {
+    var BL = D.benefit_layers, P = D.premium;
+    if (!BL || !P) return;
+
+    var series = BL.layers.map(function (L) {
+      return {
+        name: L.name, type: 'line', smooth: true, symbolSize: 5,
+        lineStyle: { width: 2.6, color: LAYER_COLOR[L.name] },
+        itemStyle: { color: LAYER_COLOR[L.name] },
+        data: L.share
+      };
+    });
+    series.push({
+      name: '福利总覆盖率', type: 'line', smooth: true, symbol: 'none',
+      lineStyle: { width: 1.6, type: 'dashed', color: '#8296ad' },
+      itemStyle: { color: '#8296ad' },
+      data: BL.coverage
+    });
+    make(el('chart-benlayer'), {
+      tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 22, 58, 6),
+      xAxis: { type: 'category', data: MLABELS, axisLabel: axisLabel(), axisLine: AXIS_LINE, axisTick: { show: false } },
+      yAxis: { type: 'value', name: '占当月岗位', nameTextStyle: axisLabel(), axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } } },
+      series: series
+    });
+
+    var byLayer = {};
+    P.benefitCats.forEach(function (r) {
+      var lay = r.group;
+      if (!byLayer[lay]) byLayer[lay] = [];
+      byLayer[lay].push([r.postShare, r.adj, r.n, r.name]);
+    });
+    var scatterSeries = Object.keys(byLayer).map(function (lay) {
+      return {
+        name: lay, type: 'scatter', data: byLayer[lay],
+        symbolSize: function (val) { return 8 + Math.sqrt(val[2]) / 9; },
+        itemStyle: { color: LAYER_COLOR[lay] || '#8296ad', opacity: .78, borderColor: '#fff', borderWidth: 1 },
+        label: {
+          show: true, position: 'top', fontSize: 10, color: '#4a5a70', distance: 4,
+          formatter: function (p) {
+            return (Math.abs(p.data[1]) > 330 || p.data[0] > 8) ? p.data[3] : '';
+          }
+        },
+        labelLayout: { hideOverlap: true },
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: '#c9d3e2', type: 'dashed', width: 1 },
+          label: { show: false },
+          data: [{ yAxis: 0 }]
+        }
+      };
+    });
+    make(el('chart-benscatter'), {
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: 'rgba(255,255,255,.97)', borderColor: '#e5eaf1', borderWidth: 1,
+        textStyle: { color: '#16202e', fontSize: 12 },
+        formatter: function (p) {
+          return '<b>' + p.data[3] + '</b><br/>所属层级：' + p.seriesName +
+            '<br/>岗位出现率：' + p.data[0] + '%' +
+            '<br/>控制后薪资溢价：<b>' + premiumLabel(p.data[1]) + ' 元/月</b>' +
+            '<br/>有该福利的岗位数：' + fmtInt(p.data[2]);
+        }
+      },
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 30, 44, 34),
+      xAxis: {
+        type: 'value', name: '岗位出现率', nameLocation: 'middle', nameGap: 26,
+        nameTextStyle: axisLabel(), min: 0,
+        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'value', name: '控制后溢价（元/月）', nameTextStyle: axisLabel(),
+        axisLabel: axisLabel({ formatter: function (v) { return (v / 1000).toFixed(1) + 'k'; } }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      series: scatterSeries
+    });
+
+    var rows = P.benefitCats.slice().sort(function (a, b) {
+      return Math.abs(b.adj || 0) - Math.abs(a.adj || 0);
+    }).slice(0, 14);
+    rows.sort(function (a, b) { return (a.adj || 0) - (b.adj || 0); });
+    make(el('chart-benpremium'), {
+      tooltip: tooltipBase({
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: function (ps) {
+          var name = ps[0].name;
+          var row = rows.filter(function (r) { return r.name === name; })[0] || {};
+          return '<b>' + name + '</b>（' + row.group + '）<br/>岗位出现率：' + row.postShare +
+            '%<br/>直接均值差：' + premiumLabel(row.raw) + ' 元/月' +
+            '<br/>控制变量后：<b>' + premiumLabel(row.adj) + ' 元/月（' +
+            (row.pct >= 0 ? '+' : '') + row.pct + '%）</b><br/>样本：' + fmtInt(row.n) + ' 条';
+        }
+      }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 30, 44, 22),
+      xAxis: {
+        type: 'value',
+        axisLabel: axisLabel({ formatter: function (v) { return (v / 1000).toFixed(1) + 'k'; } }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [
+        {
+          name: '直接均值差', type: 'bar', barMaxWidth: 9, barGap: '10%',
+          itemStyle: { color: '#cbd6e8', borderRadius: [0, 3, 3, 0] },
+          data: rows.map(function (r) { return r.raw; })
+        },
+        {
+          name: '控制变量后', type: 'bar', barMaxWidth: 9,
+          itemStyle: {
+            borderRadius: [0, 3, 3, 0],
+            color: function (p) { return p.value >= 0 ? '#12b3a0' : '#eb5757'; }
+          },
+          data: rows.map(function (r) { return r.adj; }),
+          label: {
+            show: true, fontSize: 10, color: '#4a5a70', position: 'right',
+            formatter: function (p) { return premiumLabel(p.value); }
+          },
+          markLine: {
+            silent: true, symbol: 'none',
+            lineStyle: { color: '#c9d3e2', type: 'dashed', width: 1 },
+            label: { show: false }, data: [{ xAxis: 0 }]
+          }
+        }
+      ]
+    });
+  }
+
+  function renderSkillPremium() {
+    var P = D.premium;
+    if (!P) return;
+    var rows = P.skillCats.filter(function (r) { return r.n >= 300 && r.adj != null; })
+      .sort(function (a, b) { return Math.abs(b.adj) - Math.abs(a.adj); })
+      .slice(0, 16);
+    rows.sort(function (a, b) { return a.adj - b.adj; });
+    make(el('chart-skillpremium'), {
+      tooltip: tooltipBase({
+        trigger: 'item',
+        formatter: function (p) {
+          var r = rows[p.dataIndex];
+          return '<b>' + r.name + '</b>（' + r.group + '）<br/>岗位占比：' + r.postShare +
+            '%<br/>控制后溢价：<b>' + premiumLabel(r.adj) + ' 元/月（' +
+            (r.pct >= 0 ? '+' : '') + r.pct + '%）</b><br/>样本：' + fmtInt(r.n) + ' 条';
+        }
+      }),
+      grid: gridOpt(10, 60, 16, 22),
+      xAxis: {
+        type: 'value',
+        axisLabel: axisLabel({ formatter: function (v) { return (v / 1000).toFixed(1) + 'k'; } }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 16,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: function (p) {
+            var r = rows[p.dataIndex];
+            var base = GROUP_COLOR[r.group] || '#1d5bd6';
+            return r.adj >= 0 ? base : '#eb5757';
+          }
+        },
+        data: rows.map(function (r) { return r.adj; }),
+        label: {
+          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+          formatter: function (p) { return premiumLabel(p.value); }
+        },
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: '#c9d3e2', type: 'dashed', width: 1 },
+          label: { show: false }, data: [{ xAxis: 0 }]
+        }
+      }]
+    });
+  }
+
+  function renderDesc() {
+    var DD = D.desc;
+    if (!DD) return;
+
+    var top = DD.features.slice().sort(function (a, b) { return b.postShare - a.postShare; })
+      .slice(0, 24).sort(function (a, b) { return a.postShare - b.postShare; });
+    make(el('chart-desc'), {
+      tooltip: tooltipBase({
+        trigger: 'item',
+        formatter: function (p) {
+          var r = top[p.dataIndex];
+          return '<b>' + r.name + '</b>（' + r.group + '）<br/>提及率：' + r.postShare +
+            '%（' + fmtInt(r.n_all) + ' 条）<br/>控制后溢价：<b>' + premiumLabel(r.adj) +
+            ' 元/月（' + (r.pct >= 0 ? '+' : '') + r.pct + '%）</b>';
+        }
+      }),
+      grid: gridOpt(10, 74, 12, 6),
+      xAxis: {
+        type: 'value', axisLabel: axisLabel({ formatter: '{value}%' }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: top.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 13,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: function (p) { return GROUP_COLOR[top[p.dataIndex].group] || '#1d5bd6'; }
+        },
+        data: top.map(function (r) { return r.postShare; }),
+        label: {
+          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+          formatter: function (p) {
+            var r = top[p.dataIndex];
+            return r.postShare + '%  (' + premiumLabel(r.adj) + ')';
+          }
+        }
+      }]
+    });
+
+    var toolNames = ['ERP / 财务软件（通用）', 'Excel / 表格处理', '金蝶', '用友 / 畅捷通',
+                     'SAP', 'BI / 数据分析工具', 'Python / SQL / RPA',
+                     '电子税务局 / 报税系统', 'Oracle / 甲骨文', 'OA / 协同办公'];
+    make(el('chart-desctool'), {
+      tooltip: tooltipBase({ valueFormatter: function (v) { return v == null ? '—' : (+v).toFixed(2) + '%'; } }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 20, 58, 6),
+      xAxis: { type: 'category', data: MLABELS, axisLabel: axisLabel(), axisLine: AXIS_LINE, axisTick: { show: false } },
+      yAxis: {
+        type: 'value', name: '提及率', nameTextStyle: axisLabel(),
+        axisLabel: axisLabel({ formatter: '{value}%' }), splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      series: toolNames.filter(function (n) { return DD.share[n]; }).map(function (n, i) {
+        return {
+          name: n, type: 'line', smooth: true, symbolSize: 4,
+          lineStyle: { width: 2, color: C[i % C.length] },
+          itemStyle: { color: C[i % C.length] },
+          data: DD.share[n]
+        };
+      })
+    });
+
+    var pos = DD.features.filter(function (r) { return r.adj > 0; })
+      .sort(function (a, b) { return b.adj - a.adj; }).slice(0, 10);
+    var neg = DD.features.filter(function (r) { return r.adj < 0; })
+      .sort(function (a, b) { return a.adj - b.adj; }).slice(0, 10);
+    var rows2 = pos.concat(neg).sort(function (a, b) { return a.adj - b.adj; });
+    make(el('chart-descpremium'), {
+      tooltip: tooltipBase({
+        trigger: 'item',
+        formatter: function (p) {
+          var r = rows2[p.dataIndex];
+          return '<b>' + r.name + '</b>（' + r.group + '）<br/>提及率：' + r.postShare +
+            '%<br/>控制后溢价：<b>' + premiumLabel(r.adj) + ' 元/月（' +
+            (r.pct >= 0 ? '+' : '') + r.pct + '%）</b><br/>样本：' + fmtInt(r.n) + ' 条';
+        }
+      }),
+      grid: gridOpt(10, 62, 14, 16),
+      xAxis: {
+        type: 'value',
+        axisLabel: axisLabel({ formatter: function (v) { return (v / 1000).toFixed(1) + 'k'; } }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: rows2.map(function (r) { return r.name; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 14,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: function (p) { return rows2[p.dataIndex].adj >= 0 ? '#12b3a0' : '#eb5757'; }
+        },
+        data: rows2.map(function (r) { return r.adj; }),
+        label: {
+          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+          formatter: function (p) { return premiumLabel(p.value); }
+        },
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: '#c9d3e2', type: 'dashed', width: 1 },
+          label: { show: false }, data: [{ xAxis: 0 }]
+        }
+      }]
+    });
+
+    var pairs = DD.pairs.filter(function (p) { return p.tagShare != null && p.descShare != null; });
+    pairs.sort(function (a, b) { return a.descShare - b.descShare; });
+    make(el('chart-tagdesc'), {
+      tooltip: tooltipBase({
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: function (ps) {
+          var p0 = pairs[ps[0].dataIndex];
+          return '<b>' + p0.tag + '</b><br/>技能标签口径：' + p0.tagShare +
+            '%<br/>岗位描述口径：' + p0.descShare + '%<br/>差异：' +
+            (p0.descShare - p0.tagShare >= 0 ? '+' : '') +
+            (p0.descShare - p0.tagShare).toFixed(2) + ' 个百分点';
+        }
+      }),
+      legend: legendBase({ type: 'scroll' }),
+      grid: gridOpt(10, 30, 46, 6),
+      xAxis: {
+        type: 'value', axisLabel: axisLabel({ formatter: '{value}%' }),
+        splitLine: { lineStyle: { color: '#f0f3f8' } }
+      },
+      yAxis: {
+        type: 'category', data: pairs.map(function (p) { return p.tag; }),
+        axisLabel: axisLabel({ fontSize: 11 }), axisLine: AXIS_LINE, axisTick: { show: false }
+      },
+      series: [
+        {
+          name: '技能标签口径', type: 'bar', barMaxWidth: 11,
+          itemStyle: { color: '#b9c6da', borderRadius: [0, 3, 3, 0] },
+          data: pairs.map(function (p) { return p.tagShare; })
+        },
+        {
+          name: '岗位描述口径', type: 'bar', barMaxWidth: 11,
+          itemStyle: { color: '#1d5bd6', borderRadius: [0, 3, 3, 0] },
+          data: pairs.map(function (p) { return p.descShare; }),
+          label: {
+            show: true, position: 'right', fontSize: 10, color: '#4a5a70',
+            formatter: function (p) { return p.value + '%'; }
+          }
+        }
+      ]
+    });
+  }
+
   function renderSkills() {
     var top = D.skills.overall.slice().sort(function (a, b) { return a.count - b.count; }).slice(-20);
     make(el('chart-skill'), {
@@ -806,6 +1123,9 @@
     renderSize();
     renderBenefits();
     renderSkills();
+    renderBenefitLayers();
+    renderSkillPremium();
+    renderDesc();
     if (D.map_provinces) {
       echarts.registerMap('china', D.map_provinces);
       initCity();
