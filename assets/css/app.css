@@ -320,6 +320,28 @@ footer {
   vertical-align: middle;
 }
 
+.disclaimer {
+  background: #f7f9fd;
+  border: 1px solid var(--line);
+  border-left: 3px solid #b9c6da;
+  border-radius: 12px;
+  padding: 18px 22px 20px;
+  margin-bottom: 22px;
+  scroll-margin-top: 70px;
+}
+
+.disclaimer h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.disclaimer p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.9;
+}
+
 #loading {
   position: fixed;
   inset: 0;
