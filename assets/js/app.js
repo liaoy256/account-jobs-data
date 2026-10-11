@@ -1208,47 +1208,6 @@
     var CO = D.company;
     if (!CO) return;
 
-    var rows = CO.top.slice(0, 20).sort(function (a, b) { return a.count - b.count; });
-    make(el('chart-company'), {
-      tooltip: tooltipBase({
-        trigger: 'item',
-        formatter: function (p) {
-          var r = rows[p.dataIndex];
-          return '<b>' + r.name + '</b><br/>发布岗位：' + fmtInt(r.count) + ' 条<br/>覆盖月份：' +
-            r.months + ' / 15 个月<br/>平均薪资：' + (r.avgSalary ? fmtInt(r.avgSalary) + ' 元/月' : '—');
-        }
-      }),
-      grid: gridOpt(10, 70, 12, 6),
-      xAxis: {
-        type: 'value', axisLabel: axisLabel({ formatter: function (v) { return v / 1000 + 'k'; } }),
-        splitLine: { lineStyle: { color: '#f0f3f8' } }
-      },
-      yAxis: {
-        type: 'category', data: rows.map(function (r) { return r.name; }),
-        axisLabel: axisLabel({
-          fontSize: 11,
-          formatter: function (v) { return v.length > 16 ? v.slice(0, 16) + '…' : v; }
-        }),
-        axisLine: AXIS_LINE, axisTick: { show: false }
-      },
-      series: [{
-        type: 'bar', barMaxWidth: 15,
-        itemStyle: {
-          borderRadius: [0, 4, 4, 0],
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#f2994a' }, { offset: 1, color: '#f7c08a' }])
-        },
-        data: rows.map(function (r) { return r.count; }),
-        label: {
-          show: true, position: 'right', fontSize: 10, color: '#4a5a70',
-          formatter: function (p) {
-            var r = rows[p.dataIndex];
-            return fmtInt(r.count) + ' 条 / ' + r.months + '个月';
-          }
-        }
-      }]
-    });
-
     var names = CO.dist.map(function (d) { return d.name; });
     var totalC = CO.totalCompanies || 1, totalP = CO.totalPosts || 1;
     make(el('chart-compdist'), {
